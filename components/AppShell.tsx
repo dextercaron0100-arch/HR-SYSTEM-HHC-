@@ -214,8 +214,10 @@ export function AppShell({
   const [notifications, setNotifications] = useState<TopbarNotification[]>([]);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [pendingPath, setPendingPath] = useState("");
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
+  const hasLoadedNotifications = useRef(false);
 
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
@@ -228,6 +230,7 @@ export function AppShell({
       }
       const rows = (await response.json()) as TopbarNotification[];
       setNotifications(rows);
+      hasLoadedNotifications.current = true;
     } catch {
       setNotifications([]);
     } finally {
@@ -286,12 +289,15 @@ export function AppShell({
   };
 
   useEffect(() => {
-    void loadNotifications();
+    setIsMobileNavOpen(false);
+    setPendingPath("");
   }, [pathname]);
 
   useEffect(() => {
-    setIsMobileNavOpen(false);
-  }, [pathname]);
+    if (isPanelOpen && !hasLoadedNotifications.current) {
+      void loadNotifications();
+    }
+  }, [isPanelOpen]);
 
   useEffect(() => {
     if (!isPanelOpen) {
@@ -327,11 +333,17 @@ export function AppShell({
       document.cookie = `hr_session=; Path=/; Max-Age=0; SameSite=Lax${secureFlag}`;
     }
     setIsPanelOpen(false);
+    setPendingPath("/login");
     router.push("/login");
   };
 
   return (
     <div className={`shell ${isMobileNavOpen ? "mobile-nav-open" : ""}`}>
+      <div
+        className={`route-progress ${pendingPath ? "is-active" : ""}`}
+        role="progressbar"
+        aria-label="Loading page"
+      />
       <aside className={`sidebar ${isMobileNavOpen ? "is-open" : ""}`}>
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">
@@ -349,7 +361,13 @@ export function AppShell({
               className="nav-item"
               href={item.href}
               aria-current={activePath === item.href ? "page" : undefined}
-              onClick={() => setIsMobileNavOpen(false)}
+              data-pending={pendingPath === item.href ? "true" : undefined}
+              onClick={() => {
+                setIsMobileNavOpen(false);
+                if (pathname !== item.href) {
+                  setPendingPath(item.href);
+                }
+              }}
             >
               <span className="nav-icon" aria-hidden="true">
                 <SidebarNavIcon name={item.icon} />
@@ -391,7 +409,16 @@ export function AppShell({
             >
               <MenuIcon />
             </button>
-            <Link className="icon-button icon-link" href="/settings" aria-label="Settings">
+            <Link
+              className="icon-button icon-link"
+              href="/settings"
+              aria-label="Settings"
+              onClick={() => {
+                if (pathname !== "/settings") {
+                  setPendingPath("/settings");
+                }
+              }}
+            >
               <SettingsIcon />
             </Link>
             <div className="notification-wrap" ref={panelRef}>

@@ -132,6 +132,15 @@ const css = `
   border-color: #1e7a67;
   color: #fff;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  transition: transform 100ms ease, background 100ms ease, opacity 100ms ease;
+}
+.lp-submit:active:not(:disabled) {
+  transform: scale(0.985);
 }
 .lp-footer {
   margin-top: 10px;
@@ -142,6 +151,19 @@ const css = `
 .lp-submit:disabled {
   opacity: 0.58;
   cursor: not-allowed;
+}
+.lp-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: lp-spin 600ms linear infinite;
+}
+@keyframes lp-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 920px) {
@@ -198,6 +220,7 @@ export default function LoginPage() {
   const [resolvedApiBaseUrl, setResolvedApiBaseUrl] = useState(normalizeApiBaseUrl(apiBaseUrl));
 
   useEffect(() => {
+    router.prefetch("/dashboard");
     if (getCookieValue(authCookieName)) {
       router.replace("/dashboard");
     }
@@ -365,6 +388,7 @@ export default function LoginPage() {
           <p className="lp-error">{error}</p>
 
           <button type="button" className="lp-submit" onClick={() => void handleLogin()} disabled={isSubmitting}>
+            {isSubmitting ? <span className="lp-spinner" aria-hidden="true" /> : null}
             {isSubmitting ? "Signing in..." : "Login"}
           </button>
 
