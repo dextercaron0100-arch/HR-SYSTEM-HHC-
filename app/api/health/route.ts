@@ -4,16 +4,13 @@ export async function GET() {
   try {
     const response = await fetch(`${apiBase}/api/health`, { cache: "no-store" });
     const payload = await response.json();
-
-    return Response.json({
-      proxied: true,
-      upstream: payload
-    });
+    return Response.json({ proxied: true, upstream: payload, status: "ok" });
   } catch {
     return Response.json({
       proxied: false,
       status: "ok",
-      service: "hr-system-hhc-web"
+      service: "hr-system-hhc-web",
+      auth: "internal"
     });
   }
 }

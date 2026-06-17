@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const externalApiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const localhostFallbackApiBaseUrl = "http://localhost:3001";
+const internalAuthEndpoint = "/api/auth/login";
 const authCookieName = "hr_session";
 
 const css = `
@@ -366,8 +367,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [networkReady, setNetworkReady] = useState(false);
-  const [resolvedApiBaseUrl, setResolvedApiBaseUrl] = useState(normalizeApiBaseUrl(apiBaseUrl));
+  const [networkReady, setNetworkReady] = useState(true);
+  const [resolvedApiBaseUrl, setResolvedApiBaseUrl] = useState(normalizeApiBaseUrl(externalApiBaseUrl));
 
   useEffect(() => {
     router.prefetch("/dashboard");
@@ -378,7 +379,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     const checkHealth = async () => {
-      const configured = normalizeApiBaseUrl(apiBaseUrl);
+      // Internal auth always works — mark ready immediately
+      setNetworkReady(true);
+
+      // Optionally try to resolve the external backend for future API calls
+      const configured = normalizeApiBaseUrl(externalApiBaseUrl);
       const fallback = normalizeApiBaseUrl(localhostFallbackApiBaseUrl);
       const isLocalHost = typeof window !== "undefined" && window.location.hostname === "localhost";
       const candidates = configured === fallback || !isLocalHost ? [configured] : [configured, fallback];
@@ -388,18 +393,16 @@ export default function LoginPage() {
           const response = await fetch(`${candidate}/api/health`, { cache: "no-store" });
           if (response.ok) {
             setResolvedApiBaseUrl(candidate);
-            setNetworkReady(true);
             return;
           }
         } catch {
-          // try next
+          // external backend unavailable — internal auth still works
         }
       }
-      setNetworkReady(false);
     };
 
     void checkHealth();
-    const timer = window.setInterval(() => void checkHealth(), 10000);
+    const timer = window.setInterval(() => void checkHealth(), 30000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -417,11 +420,28 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setError("");
     try {
-      const response = await fetch(`${resolvedApiBaseUrl}/api/auth/login`, {
+      // Try internal auth first; fall back to external backend if available
+      let response = await fetch(internalAuthEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employeeCode: employeeCode.trim(), password })
       });
+
+      // If internal says not found, try external backend as fallback
+      if (!response.ok && response.status === 401) {
+        try {
+          const externalResponse = await fetch(`${resolvedApiBaseUrl}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employeeCode: employeeCode.trim(), password })
+          });
+          if (externalResponse.ok) {
+            response = externalResponse;
+          }
+        } catch {
+          // external unavailable, keep internal response
+        }
+      }
 
       if (!response.ok) {
         let message = "Invalid employee code or password.";
