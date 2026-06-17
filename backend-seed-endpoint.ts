@@ -175,7 +175,7 @@ export async function seedEmployeesHandler(req: { method: string; body: { force?
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 }
