@@ -157,7 +157,7 @@ export async function seedEmployeesHandler(req: { method: string; body: { force?
         results.push({
           employeeCode: emp.employeeCode,
           status: "error",
-          message: err.message
+          message: err instanceof Error ? err.message : String(err)
         });
       }
     }
