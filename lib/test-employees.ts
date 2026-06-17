@@ -57,6 +57,18 @@ export const testEmployees: TestEmployee[] = [
     positionId: "pos-hr-officer",
     basicSalary: 48000
   },
+  {
+    id: "emp-hr-003",
+    employeeCode: "HR-2026-003",
+    firstName: "Ana",
+    lastName: "Herrera",
+    email: "ana.herrera@company.com",
+    password: "Ana@2026",
+    role: "hr_admin",
+    departmentId: "dep-hr",
+    positionId: "pos-hr-officer",
+    basicSalary: 46000
+  },
 
   // Finance
   {

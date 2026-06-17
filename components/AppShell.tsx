@@ -17,19 +17,25 @@ type NavIconName =
   | "reports"
   | "roles";
 
-const navigation: Array<{ href: string; label: string; icon: NavIconName }> = [
-  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/employees", label: "Employee Records", icon: "employees" },
-  { href: "/attendance", label: "Attendance", icon: "attendance" },
-  { href: "/performance", label: "Performance", icon: "performance" },
-  { href: "/leave", label: "Leave Management", icon: "leave" },
-  { href: "/payroll", label: "Payroll", icon: "payroll" },
-  { href: "/recruitment", label: "Recruitment", icon: "recruitment" },
-  { href: "/onboarding", label: "Onboarding", icon: "onboarding" },
-  { href: "/documents", label: "Documents", icon: "documents" },
-  { href: "/reports", label: "Reports", icon: "reports" },
-  { href: "/settings", label: "Roles & Access", icon: "roles" }
+type RoleName = "super_admin" | "hr_admin" | "finance" | "manager" | "employee";
+
+const allNavigation: Array<{ href: string; label: string; icon: NavIconName; roles: RoleName[] }> = [
+  { href: "/dashboard",   label: "Dashboard",        icon: "dashboard",   roles: ["super_admin", "hr_admin", "finance", "manager", "employee"] },
+  { href: "/employees",   label: "Employee Records", icon: "employees",   roles: ["super_admin", "hr_admin", "finance", "manager"] },
+  { href: "/attendance",  label: "Attendance",       icon: "attendance",  roles: ["super_admin", "hr_admin", "manager", "employee"] },
+  { href: "/performance", label: "Performance",      icon: "performance", roles: ["super_admin", "hr_admin", "manager", "employee"] },
+  { href: "/leave",       label: "Leave Management", icon: "leave",       roles: ["super_admin", "hr_admin", "manager", "employee"] },
+  { href: "/payroll",     label: "Payroll",          icon: "payroll",     roles: ["super_admin", "finance"] },
+  { href: "/recruitment", label: "Recruitment",      icon: "recruitment", roles: ["super_admin", "hr_admin"] },
+  { href: "/onboarding",  label: "Onboarding",       icon: "onboarding",  roles: ["super_admin", "hr_admin"] },
+  { href: "/documents",   label: "Documents",        icon: "documents",   roles: ["super_admin", "hr_admin"] },
+  { href: "/reports",     label: "Reports",          icon: "reports",     roles: ["super_admin", "hr_admin", "finance", "manager"] },
+  { href: "/settings",    label: "Roles & Access",   icon: "roles",       roles: ["super_admin", "hr_admin"] }
 ];
+
+function getNavigation(role: RoleName) {
+  return allNavigation.filter((item) => item.roles.includes(role));
+}
 
 const labels: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -201,6 +207,41 @@ function SidebarNavIcon({ name }: { name: NavIconName }) {
   }
 }
 
+type StoredUser = {
+  role?: string;
+  firstName?: string;
+  lastName?: string;
+  employeeCode?: string;
+};
+
+function readStoredUser(): StoredUser {
+  try {
+    if (typeof window === "undefined") return {};
+    const raw = window.localStorage.getItem("hr_user");
+    if (!raw) return {};
+    return JSON.parse(raw) as StoredUser;
+  } catch {
+    return {};
+  }
+}
+
+function getRoleLabel(role: string): string {
+  switch (role) {
+    case "super_admin": return "Super Admin";
+    case "hr_admin":    return "HR Admin";
+    case "finance":     return "Finance";
+    case "manager":     return "Manager";
+    case "employee":    return "Employee";
+    default:            return "HR";
+  }
+}
+
+function getInitials(user: StoredUser): string {
+  const first = user.firstName?.[0] ?? "";
+  const last = user.lastName?.[0] ?? "";
+  return (first + last).toUpperCase() || "HR";
+}
+
 export function AppShell({
   children,
   activePath
@@ -218,6 +259,7 @@ export function AppShell({
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
   const hasLoadedNotifications = useRef(false);
+  const [currentUser, setCurrentUser] = useState<StoredUser>({});
 
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
@@ -289,6 +331,10 @@ export function AppShell({
   };
 
   useEffect(() => {
+    setCurrentUser(readStoredUser());
+  }, []);
+
+  useEffect(() => {
     setIsMobileNavOpen(false);
     setPendingPath("");
   }, [pathname]);
@@ -331,6 +377,7 @@ export function AppShell({
       window.localStorage.removeItem("hr_user");
       const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
       document.cookie = `hr_session=; Path=/; Max-Age=0; SameSite=Lax${secureFlag}`;
+      document.cookie = `hr_role=; Path=/; Max-Age=0; SameSite=Lax${secureFlag}`;
     }
     setIsPanelOpen(false);
     setPendingPath("/login");
@@ -355,7 +402,7 @@ export function AppShell({
           </div>
         </div>
         <nav className="nav" aria-label="Primary">
-          {navigation.map((item) => (
+          {getNavigation((currentUser.role as RoleName) ?? "employee").map((item) => (
             <Link
               key={item.href}
               className="nav-item"
@@ -490,10 +537,10 @@ export function AppShell({
               ) : null}
             </div>
             <div className="profile-chip">
-              <div className="avatar">HD</div>
+              <div className="avatar">{getInitials(currentUser)}</div>
               <div>
-                <strong>HR DEXTER</strong>
-                <span>HR</span>
+                <strong>{currentUser.firstName && currentUser.lastName ? `${currentUser.firstName} ${currentUser.lastName}` : (currentUser.employeeCode ?? "User")}</strong>
+                <span>{getRoleLabel(currentUser.role ?? "")}</span>
               </div>
             </div>
             <button

@@ -205,6 +205,15 @@ function setAuthCookie(token: string) {
   document.cookie = `${authCookieName}=${encodeURIComponent(token)}; Path=/; Max-Age=43200; SameSite=Lax${secureFlag}`;
 }
 
+function setRoleCookie(role: string) {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const isSecure = typeof window !== "undefined" && window.location.protocol === "https:";
+  const secureFlag = isSecure ? "; Secure" : "";
+  document.cookie = `hr_role=${encodeURIComponent(role)}; Path=/; Max-Age=43200; SameSite=Lax${secureFlag}`;
+}
+
 function normalizeApiBaseUrl(url: string) {
   return url.replace(/\/+$/, "");
 }
@@ -298,7 +307,7 @@ export default function LoginPage() {
 
       const payload = (await response.json()) as {
         accessToken?: string;
-        user?: unknown;
+        user?: { role?: string; firstName?: string; lastName?: string; employeeCode?: string };
       };
 
       if (!payload.accessToken) {
@@ -311,6 +320,7 @@ export default function LoginPage() {
         window.localStorage.setItem("hr_user", JSON.stringify(payload.user ?? {}));
       }
       setAuthCookie(payload.accessToken);
+      setRoleCookie(payload.user?.role ?? "employee");
       router.push("/dashboard");
     } catch {
       setError("Unable to reach auth service. Please try again.");
