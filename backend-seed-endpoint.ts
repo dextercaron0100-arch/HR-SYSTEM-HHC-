@@ -126,7 +126,7 @@ const testEmployees = [
  * Next.js API Route Handler
  * File: pages/api/admin/seed-employees.ts
  */
-export async function seedEmployeesHandler(req, res) {
+export async function seedEmployeesHandler(req: { method: string; body: { force?: boolean } }, res: { status: (code: number) => { json: (data: unknown) => void }; json: (data: unknown) => void }) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
